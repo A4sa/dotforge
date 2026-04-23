@@ -1,0 +1,181 @@
+# ============================================================================
+#
+#   ██████╗  █████╗ ███████╗██╗  ██╗     █████╗ ██╗     ██╗ █████╗ ███████╗
+#   ██╔══██╗██╔══██╗██╔════╝██║  ██║    ██╔══██╗██║     ██║██╔══██╗██╔════╝
+#   ██████╔╝███████║███████╗███████║    ███████║██║     ██║███████║███████╗
+#   ██╔══██╗██╔══██║╚════██║██╔══██║    ██╔══██║██║     ██║██╔══██║╚════██║
+#   ██████╔╝██║  ██║███████║██║  ██║    ██║  ██║███████╗██║██║  ██║███████║
+#   ╚═════╝ ╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝   ╚═╝  ╚═╝╚══════╝╚═╝╚═╝  ╚═╝╚══════╝
+#
+#  Author      : Abdul Sattar
+#  Email       : abdul.linuxdev@gmail.com
+#  Repository  : https://github.com/A4sa/vimrc-Embedded.git
+#  Description : Annotated shell aliases for embedded systems Engineer
+#
+#  HOW TO ACTIVATE
+#  ---------------
+#   1. Add this block to your ~/.bashrc (once, at the bottom):
+#
+#     if [ -f ~/.bash_aliases ]; then
+#         . ~/.bash_aliases
+#     fi
+#
+#   2. Install recommended tools:
+#       sudo apt install fzf bat picocom cscope universal-ctags
+#
+#   3. Fix Docker permissions (replaces 'alias docker=sudo docker'):
+#       sudo usermod -aG docker $USER && newgrp docker
+#
+#   4. Fix serial port permissions:
+#       sudo usermod -aG dialout $USER  
+
+# ======================= NAVIGATION & SHELL BASICS =======================
+alias clr='clear'
+alias ..='cd ..'
+alias ...='cd ../..'
+alias ....='cd ../../..'
+alias h='history'           # Example h | grep make
+alias o='xdg-open'          # Open files/URLs in default apps
+
+# ====================== SYSTEM & PACKAGE MANAGEMENT ======================
+alias update='sudo apt update && sudo apt upgrade -y && sudo apt remove '
+alias install='sudo apt install'
+alias remove='sudo apt remove -y'
+alias reboot='sudo reboot'
+alias dmesg='sudo dmesg'
+
+# ========================= FILE LISTING & SEARCH =========================
+alias ll='ls -alF'          
+alias la='ls -A'
+alias ls='ls --color=auto'
+
+# ========================= FUZZY FINDER (fzf) ==========================
+alias f='fzf'
+alias ff='fzf --preview="bat --style=numbers --color=always {}"'
+alias vfind='vim $(fzf)' # Open file in vim
+
+# ============================= Git =====================================
+alias g='git'
+alias gs='git status'
+alias ga='git add'
+alias gc='git commit -m'
+alias gl='git log'
+alias gb='git branch'
+alias gco='git checkout'
+alias gd='git diff'
+alias gpl='git pull'
+alias gps='git push'
+
+# ================== PYTHON & VIRTUAL ENVIRONMENTS ===================
+alias python='python3'
+alias py='python3'
+alias pip='pip3'
+alias env='source venv/bin/activate'
+alias envd='deactivate'
+
+# ============================== DOCKER ==============================
+alias docker='sudo docker'
+alias dkps='docker ps'                   # List running containers
+alias dkpsa='docker ps -a'               # List all containers (including stopped)
+alias dkimg='docker images'              # List local images
+alias dkrm='docker rm'                   # Remove a container
+alias dkrmi='docker rmi'                 # Remove an image
+alias dklog='docker logs'                # Show container stdout/stderr logs
+alias dkexec='docker exec -it'           # Enter a running container interactively
+alias dkstop='docker stop'               # Stop a running container
+alias dkprune='docker system prune -f'   # Remove all stopped containers 
+
+# ========================== BUILD SYSTEM =============================
+alias make='make -j$(nproc)'             
+alias mb='make -j$(nproc)'              # Multi-core parallel build i
+alias mc='make clean'                   # Clean build artifacts 
+alias mdtb='make -j$(nproc) dtbs'       # make the DTB
+alias mbmod='make -j$(nproc) modules'   # make the Driver .ko
+alias mkcs='find . -name "*.[ch]" > cscope.files && cscope -b -q -k && echo "cscope index rebuilt"'
+alias mktags='ctags -R --exclude=.git --exclude="*.o" --exclude="*.ko" . && echo "ctags index rebuilt"'
+alias mkidx='mkcs && mktags'            # Rebuild both at once
+
+# ================== ANDROID DEBUG BRIDGE (ADB) ======================
+alias shell='adb shell' 
+alias adbdev='adb devices'               # List connected devices
+alias adblog='adb logcat'                # Stream Android logcat output
+alias adbr='adb reboot'                  # Reboot the target device
+
+# USAGE: adbpush ./my_binary /data/local/tmp/
+adbpush() {
+    if [ -z "$1" ] || [ -z "$2" ]; then
+        echo "Usage: adbpush <local_file> <remote_path>"
+        return 1
+    fi
+    adb push "$1" "$2" && adb shell chmod +x "$2/$( basename $1 )"
+    echo "Pushed and chmod +x: $2/$(basename $1)"
+}
+
+# ===================== SERIAL CONSOLE ================================
+
+# ── picocom aliases ───────────────────────────────────────────────────
+alias con='picocom -b 115200 --flow=none /dev/ttyUSB0'
+
+alias con0='picocom -b 115200 --flow=none /dev/ttyUSB0'
+alias con1='picocom -b 115200 --flow=none /dev/ttyUSB1'
+alias con2='picocom -b 115200 --flow=none /dev/ttyACM0'
+
+alias con57='picocom -b 57600 --flow=none /dev/ttyUSB0'
+alias con9='picocom  -b 9600  --flow=none /dev/ttyUSB0'
+
+# TIP:  Review the log later with: cat ~/serial_logs/<file> | less
+alias conlog='mkdir -p ~/serial_logs && picocom -b 115200 --flow=none \
+    --logfile ~/serial_logs/$(date +%Y-%m-%d_%H-%M-%S).log /dev/ttyUSB0'
+
+# ── minicom aliases ────────────────────────────────────────────────────
+alias mcom='minicom'
+
+alias mcom-setup='sudo minicom -s'
+
+alias mcom0='minicom -D /dev/ttyUSB0 -b 115200'
+alias mcom1='minicom -D /dev/ttyUSB1 -b 115200'
+
+alias mcom-xfer='minicom -D /dev/ttyUSB0 -b 115200 -c on'
+
+alias lsserial='echo "=== by-id (stable) ===" && \
+    ls /dev/serial/by-id/ 2>/dev/null || echo "none" && \
+    echo "=== raw devices ===" && \
+    ls /dev/ttyUSB* /dev/ttyACM* 2>/dev/null || echo "none"'
+
+# =====================  KERNEL / BSP HELPERS ===========================
+alias kconfig='make menuconfig'            # Open Kernel config menu
+
+# Search for Kernal config by name ────> kgrep USB_SERIAL
+kgrep() {
+    if [ -z "$1" ]; then
+        echo "Usage: kgrep <CONFIG_OPTION>"
+        echo "  e.g. kgrep USB_SERIAL"
+        return 1
+    fi
+    grep -i "$1" .config 2>/dev/null || echo "No .config found in current directory"
+}
+
+# Ceck if Kernel module is loaded ────> modcheck i2c_dev
+modcheck() {
+    lsmod | grep -i "$1" || echo "Module '$1' is not loaded"
+}
+
+# demsg output for specific  ────> dlog i2c 
+dlog() {
+    sudo dmesg  | grep -i "$1"
+}
+
+alias buildlog='tail -50 build.log'
+alias buildlogerr='grep -E "error:|warning:" build.log | tail -30'
+
+
+# =================  Project Directories ====================
+alias sdk='cd ~/Ambarella/REV_B/ambarella/'
+alias work='cd ~/Workspace/'
+alias dts='vim ./boards/cv25_hazelnut/bsp/cv25_hazelnut.dts'
+alias dtsi='vim ./kernel/linux-5.15.158/arch/arm64/boot/dts/ambarella/ambarella-cv25.dtsi'
+alias qnn='cd ~/Android/qairt/2.34.0.250424/'
+alias venv='source bin/venv/bin/activate'
+alias snpe='source bin/envsetup.sh'
+
+
