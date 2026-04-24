@@ -1,0 +1,710 @@
+# ============================================================================
+#
+#  ██████╗ ██╗   ██╗████████╗██╗  ██╗ ██████╗ ███╗   ██╗
+#  ██╔══██╗╚██╗ ██╔╝╚══██╔══╝██║  ██║██╔═══██╗████╗  ██║
+#  ██████╔╝ ╚████╔╝    ██║   ███████║██║   ██║██╔██╗ ██║
+#  ██╔═══╝   ╚██╔╝     ██║   ██╔══██║██║   ██║██║╚██╗██║
+#  ██║        ██║      ██║   ██║  ██║╚██████╔╝██║ ╚████║
+#  ╚═╝        ╚═╝      ╚═╝   ╚═╝  ╚═╝ ╚═════╝ ╚═╝  ╚═══╝
+#
+#  File name   : python.snippets
+#  Author      : Abdul Sattar <abdul.linuxdev@gmail.com>
+#  Repository  : https://github.com/A4sa/dotforge.git
+#  Description : UltiSnips snippets for Python scripting in embedded/BSP work.
+#
+#  CONTEXT — WHY EMBEDDED ENGINEERS WRITE PYTHON
+#  -----------------------------------------------
+#  Python is the scripting layer around embedded Linux work:
+#    - Serial communication scripts    (pyserial)
+#    - Register map / bitfield tools   (parse hex dumps)
+#    - Automated board testing         (pytest + paramiko)
+#    - Log parsing and analysis        (dmesg, logcat, picocom logs)
+#    - ADB / SSH automation            (subprocess, fabric)
+#    - Build system helpers            (argparse CLIs wrapping make)
+#    - Yocto recipe generators         (BitBake metadata scripts)
+#
+#  PLACE THIS FILE AT:
+#    ~/.vim/UltiSnips/python.snippets
+#    OR: vim/snippets/python.snippets  (symlinked by install.sh)
+#
+#  TABLE OF CONTENTS
+#  -----------------
+#  [1]  File Header
+#  [2]  Script Entry Point (argparse)
+#  [3]  Logging
+#  [4]  Serial Communication
+#  [5]  SSH / Remote Command Execution
+#  [6]  Subprocess (shell commands)
+#  [7]  File & Path Helpers
+#  [8]  Register / Bitfield Tools
+#  [9]  Testing (pytest)
+#  [10] Classes
+#  [11] Common Python Patterns
+#
+# ============================================================================
+
+
+# ============================================================================
+# [1]  FILE HEADER
+# ============================================================================
+
+# trigger: fhdr
+# Professional script header with shebang, encoding, and docstring
+snippet fhdr "Python script file header" b
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+${1:script_name}.py — ${2:Brief description of what this script does}
+
+Author  : ${3:Abdul Sattar} <${4:abdul.linuxdev@gmail.com}>
+Created : `!v strftime('%B %Y')`
+Repo    : https://github.com/A4sa/dotforge
+
+Usage:
+    python3 ${1:script_name}.py ${5:[options]}
+
+Description:
+    ${6:Longer description of the script's purpose, inputs, and outputs.}
+"""
+
+$0
+endsnippet
+
+
+# ============================================================================
+# [2]  SCRIPT ENTRY POINT — argparse
+# ============================================================================
+
+# trigger: main
+# Full argparse-based script entry point — the standard structure for
+# any command-line tool used in embedded automation
+snippet main "argparse CLI script entry point" b
+import argparse
+import sys
+import logging
+
+log = logging.getLogger(__name__)
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description="${1:Script description}",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+    %(prog)s --${2:option} ${3:value}
+    %(prog)s --verbose --${2:option} ${3:value}
+        """,
+    )
+    parser.add_argument(
+        "--${2:option}",
+        type=${4:str},
+        required=${5:True},
+        help="${6:Description of this option}",
+    )
+    parser.add_argument(
+        "--verbose", "-v",
+        action="store_true",
+        help="Enable verbose debug output",
+    )
+    return parser.parse_args()
+
+
+def main(args):
+    $0
+    return 0
+
+
+if __name__ == "__main__":
+    args = parse_args()
+    logging.basicConfig(
+        level=logging.DEBUG if args.verbose else logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(message)s",
+        datefmt="%H:%M:%S",
+    )
+    sys.exit(main(args))
+endsnippet
+
+# trigger: arg
+# Add a single argument to an existing ArgumentParser
+snippet arg "argparse add_argument" b
+parser.add_argument(
+    "--${1:name}",
+    type=${2:str},
+    default=${3:None},
+    help="${4:Description}",
+)
+$0
+endsnippet
+
+# trigger: argpos
+# Positional argument
+snippet argpos "argparse positional argument" b
+parser.add_argument(
+    "${1:name}",
+    type=${2:str},
+    help="${3:Description}",
+)
+$0
+endsnippet
+
+
+# ============================================================================
+# [3]  LOGGING
+# ============================================================================
+
+# trigger: logsetup
+# Full logging configuration — file + console output
+snippet logsetup "logging setup with file and console handlers" b
+import logging
+from pathlib import Path
+
+def setup_logging(verbose: bool = False, log_file: str = None):
+    """Configure logging to console and optionally to a file."""
+    level = logging.DEBUG if verbose else logging.INFO
+    fmt = "%(asctime)s [%(levelname)-8s] %(name)s: %(message)s"
+    datefmt = "%Y-%m-%d %H:%M:%S"
+
+    handlers = [logging.StreamHandler()]
+    if log_file:
+        Path(log_file).parent.mkdir(parents=True, exist_ok=True)
+        handlers.append(logging.FileHandler(log_file))
+
+    logging.basicConfig(level=level, format=fmt, datefmt=datefmt,
+                        handlers=handlers)
+
+log = logging.getLogger(__name__)
+$0
+endsnippet
+
+# trigger: log
+# Quick module-level logger declaration
+snippet log "module-level logger" b
+import logging
+log = logging.getLogger(__name__)
+$0
+endsnippet
+
+
+# ============================================================================
+# [4]  SERIAL COMMUNICATION
+# ============================================================================
+#
+# WHY: Serial is the primary debug interface in embedded Linux.
+#      pyserial is the standard Python library for UART communication.
+# INSTALL: pip3 install pyserial
+
+# trigger: serial
+# Full serial port communication class
+snippet serial "pyserial serial port communication" b
+import serial
+import serial.tools.list_ports
+import time
+import logging
+
+log = logging.getLogger(__name__)
+
+
+class SerialComm:
+    """UART serial communication wrapper for embedded device console."""
+
+    def __init__(self, port: str, baud: int = 115200,
+                 timeout: float = 1.0, flow: bool = False):
+        self.port = port
+        self.baud = baud
+        self._ser = None
+
+        self._ser = serial.Serial(
+            port=port,
+            baudrate=baud,
+            bytesize=serial.EIGHTBITS,
+            parity=serial.PARITY_NONE,
+            stopbits=serial.STOPBITS_ONE,
+            rtscts=flow,   # hardware flow control — False for most targets
+            timeout=timeout,
+        )
+        log.info("Connected: %s @ %d baud", port, baud)
+
+    def send(self, cmd: str, end: str = "\n") -> None:
+        """Send a command string to the target."""
+        data = (cmd + end).encode("utf-8")
+        self._ser.write(data)
+        log.debug("TX: %r", cmd)
+
+    def read_until(self, prompt: str, timeout: float = 10.0) -> str:
+        """Read lines until the expected prompt string appears."""
+        output = []
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            line = self._ser.readline().decode("utf-8", errors="replace")
+            if line:
+                output.append(line.rstrip())
+                log.debug("RX: %s", line.rstrip())
+                if prompt in line:
+                    break
+        return "\n".join(output)
+
+    def expect_login(self, user: str = "root", password: str = "") -> bool:
+        """Wait for login prompt and authenticate."""
+        self.read_until("login:", timeout=30)
+        self.send(user)
+        if password:
+            self.read_until("Password:")
+            self.send(password)
+        resp = self.read_until("# ", timeout=10)
+        return "# " in resp
+
+    def close(self) -> None:
+        if self._ser and self._ser.is_open:
+            self._ser.close()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_):
+        self.close()
+
+
+def list_serial_ports():
+    """List all available serial ports."""
+    ports = serial.tools.list_ports.comports()
+    for p in ports:
+        print(f"  {p.device:15} — {p.description}")
+
+
+if __name__ == "__main__":
+    list_serial_ports()
+    with SerialComm("${1:/dev/ttyUSB0}", baud=${2:115200}) as s:
+        s.send("${3:uname -r}")
+        print(s.read_until("${4:# }"))
+$0
+endsnippet
+
+
+# ============================================================================
+# [5]  SSH / REMOTE COMMAND EXECUTION
+# ============================================================================
+#
+# WHY: Automated board testing — SSH into a target, run commands, capture output.
+# INSTALL: pip3 install paramiko
+
+# trigger: ssh
+# SSH connection class using paramiko
+snippet ssh "paramiko SSH remote command execution" b
+import paramiko
+import logging
+
+log = logging.getLogger(__name__)
+
+
+class SSHClient:
+    """SSH wrapper for remote command execution on embedded targets."""
+
+    def __init__(self, host: str, user: str = "root",
+                 password: str = "", port: int = 22, timeout: int = 10):
+        self._client = paramiko.SSHClient()
+        self._client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        self._client.connect(
+            hostname=host,
+            username=user,
+            password=password,
+            port=port,
+            timeout=timeout,
+        )
+        log.info("SSH connected: %s@%s:%d", user, host, port)
+
+    def run(self, cmd: str, timeout: int = 30) -> tuple[int, str, str]:
+        """
+        Run a command on the remote host.
+        Returns: (exit_code, stdout, stderr)
+        """
+        log.debug("SSH run: %s", cmd)
+        _, stdout, stderr = self._client.exec_command(cmd, timeout=timeout)
+        exit_code = stdout.channel.recv_exit_status()
+        out = stdout.read().decode().strip()
+        err = stderr.read().decode().strip()
+        if exit_code != 0:
+            log.warning("Command failed (rc=%d): %s\nstderr: %s",
+                        exit_code, cmd, err)
+        return exit_code, out, err
+
+    def run_check(self, cmd: str) -> str:
+        """Run a command and raise RuntimeError on failure."""
+        rc, out, err = self.run(cmd)
+        if rc != 0:
+            raise RuntimeError(f"Command failed: {cmd!r}\n{err}")
+        return out
+
+    def close(self) -> None:
+        self._client.close()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_):
+        self.close()
+
+
+if __name__ == "__main__":
+    with SSHClient("${1:192.168.1.100}", user="${2:root}") as ssh:
+        print(ssh.run_check("uname -r"))
+$0
+endsnippet
+
+
+# ============================================================================
+# [6]  SUBPROCESS — SHELL COMMANDS
+# ============================================================================
+
+# trigger: sub
+# subprocess.run — the modern way to run shell commands from Python
+snippet sub "subprocess.run shell command" b
+import subprocess
+
+def run_cmd(cmd: list[str], check: bool = True,
+            capture: bool = True) -> subprocess.CompletedProcess:
+    """
+    Run a shell command.
+    Args:
+        cmd    — command as a list: ['make', '-j4']
+        check  — raise CalledProcessError on non-zero exit
+        capture — capture stdout/stderr (False = print to terminal)
+    """
+    return subprocess.run(
+        cmd,
+        check=check,
+        capture_output=capture,
+        text=True,
+    )
+
+
+# Usage:
+# result = run_cmd(['make', '-j4'])
+# print(result.stdout)
+$0
+endsnippet
+
+# trigger: shell
+# Quick one-liner subprocess call — run and return output
+snippet shell "subprocess one-liner — run and return stdout" b
+import subprocess
+def shell(cmd: str) -> str:
+    """Run a shell command string and return stdout. Raises on error."""
+    return subprocess.check_output(cmd, shell=True, text=True).strip()
+
+# Usage: kernel_ver = shell("uname -r")
+$0
+endsnippet
+
+
+# ============================================================================
+# [7]  FILE & PATH HELPERS
+# ============================================================================
+
+# trigger: pathlib
+# pathlib boilerplate — modern file path handling
+snippet pathlib "pathlib Path operations" b
+from pathlib import Path
+
+${1:base} = Path("${2:.}")
+${3:output} = ${1:base} / "${4:output}"
+${3:output}.mkdir(parents=True, exist_ok=True)
+
+# Common operations:
+# p.exists()          — check if path exists
+# p.read_text()       — read file content as string
+# p.write_text(data)  — write string to file
+# p.glob("*.c")       — find files matching pattern
+# p.stem              — filename without extension
+# p.suffix            — file extension (.c, .dts)
+$0
+endsnippet
+
+# trigger: readfile
+# Safe file reader with error handling
+snippet readfile "Read file with error handling" b
+from pathlib import Path
+
+def read_file(path: str) -> str:
+    """Read a file and return its contents. Returns empty string on error."""
+    try:
+        return Path(path).read_text(encoding="utf-8")
+    except FileNotFoundError:
+        log.error("File not found: %s", path)
+        return ""
+    except PermissionError:
+        log.error("Permission denied: %s", path)
+        return ""
+$0
+endsnippet
+
+
+# ============================================================================
+# [8]  REGISTER / BITFIELD TOOLS
+# ============================================================================
+#
+# WHY: Parsing hex register dumps, computing bitmasks, and formatting
+#      register values are daily tasks in BSP and driver debugging.
+
+# trigger: regparse
+# Parse and display a hardware register value with named bitfields
+snippet regparse "Register bitfield parser and display" b
+class Register:
+    """
+    Parse and display a hardware register with named bitfields.
+
+    Usage:
+        reg = Register("CTRL", 0x${1:1A}, fields={
+            "ENABLE":   (${2:0},  ${3:0}),   # bit 0
+            "MODE":     (${4:2},  ${5:1}),   # bits 2:1
+            "CLK_DIV":  (${6:7},  ${7:3}),   # bits 7:3
+        })
+        reg.dump()
+    """
+
+    def __init__(self, name: str, value: int, fields: dict):
+        self.name  = name
+        self.value = value
+        self.fields = fields  # {field_name: (msb, lsb)}
+
+    def get(self, field: str) -> int:
+        msb, lsb = self.fields[field]
+        mask = (1 << (msb - lsb + 1)) - 1
+        return (self.value >> lsb) & mask
+
+    def dump(self):
+        print(f"Register: {self.name} = 0x{self.value:08X} ({self.value:#034b})")
+        print(f"  {'Field':<16} {'Bits':>8}  {'Value':>10}  {'Hex':>8}")
+        print(f"  {'-'*16} {'-'*8}  {'-'*10}  {'-'*8}")
+        for name, (msb, lsb) in sorted(self.fields.items(),
+                                        key=lambda x: x[1][1], reverse=True):
+            val = self.get(name)
+            bits = f"[{msb}:{lsb}]" if msb != lsb else f"[{msb}]"
+            print(f"  {name:<16} {bits:>8}  {val:>10}  {val:#010x}")
+$0
+endsnippet
+
+# trigger: bitmask
+# Compute a bitmask for a register field
+snippet bitmask "Bitmask and field extraction helpers" b
+def bitmask(msb: int, lsb: int) -> int:
+    """Return a bitmask for bits [msb:lsb]."""
+    return ((1 << (msb - lsb + 1)) - 1) << lsb
+
+def get_field(reg: int, msb: int, lsb: int) -> int:
+    """Extract a bitfield from a register value."""
+    return (reg >> lsb) & ((1 << (msb - lsb + 1)) - 1)
+
+def set_field(reg: int, msb: int, lsb: int, val: int) -> int:
+    """Set a bitfield in a register value."""
+    mask = bitmask(msb, lsb)
+    return (reg & ~mask) | ((val << lsb) & mask)
+
+# Usage:
+# ctrl = 0x1A
+# mode = get_field(ctrl, 2, 1)       # extract bits [2:1]
+# ctrl = set_field(ctrl, 2, 1, 0x3)  # set bits [2:1] = 3
+$0
+endsnippet
+
+
+# ============================================================================
+# [9]  TESTING — pytest
+# ============================================================================
+
+# trigger: test
+# pytest test module skeleton for embedded board testing
+snippet test "pytest test module skeleton" b
+"""
+${1:test_module}.py — ${2:Test description}
+
+Tests for ${3:component or feature being tested}.
+Run with: pytest ${1:test_module}.py -v
+"""
+
+import pytest
+import logging
+
+log = logging.getLogger(__name__)
+
+
+# ── Fixtures ─────────────────────────────────────────────────────────────────
+
+@pytest.fixture(scope="${4:session}")
+def ${5:device}():
+    """Set up the ${5:device} connection for the test session."""
+    ${6:dev} = ${7:None}  # TODO: initialize connection
+    yield ${6:dev}
+    # Teardown runs after all tests in the scope
+    ${8:pass}  # TODO: cleanup
+
+
+# ── Tests ─────────────────────────────────────────────────────────────────────
+
+class Test${9:Feature}:
+    """Tests for ${9:Feature}."""
+
+    def test_${10:basic}(self, ${5:device}):
+        """${11:Test that basic functionality works.}"""
+        $0
+        assert True
+
+    def test_${12:edge_case}(self, ${5:device}):
+        """${13:Test edge case behavior.}"""
+        pass
+endsnippet
+
+# trigger: fixture
+# Single pytest fixture
+snippet fixture "pytest fixture" b
+@pytest.fixture(scope="${1:function}")
+def ${2:fixture_name}():
+    """${3:Setup description}."""
+    ${4:resource} = ${5:None}  # TODO: setup
+    yield ${4:resource}
+    ${6:pass}  # TODO: teardown
+$0
+endsnippet
+
+# trigger: param
+# pytest parameterized test
+snippet param "pytest parametrize decorator" b
+@pytest.mark.parametrize("${1:param}", [
+    ${2:("value1", "expected1")},
+    ${3:("value2", "expected2")},
+])
+def test_${4:name}(self, ${1:param}):
+    ${5:input_val}, ${6:expected} = ${1:param}
+    $0
+    assert ${6:expected}
+endsnippet
+
+
+# ============================================================================
+# [10]  CLASSES
+# ============================================================================
+
+# trigger: cls
+# Standard Python class with __init__, __repr__, __str__
+snippet cls "Python class with init, repr, str" b
+class ${1:ClassName}:
+    """${2:Class description.}"""
+
+    def __init__(self, ${3:args}):
+        """Initialize ${1:ClassName}."""
+        ${4:self.value = args}
+
+    def __repr__(self) -> str:
+        return f"${1:ClassName}(${4:self.value!r})"
+
+    def __str__(self) -> str:
+        return f"${1:ClassName}: ${4:{self.value}}"
+
+    $0
+endsnippet
+
+# trigger: dataclass
+# Python dataclass — cleaner than manual __init__ for data-holding classes
+snippet dataclass "Python dataclass" b
+from dataclasses import dataclass, field
+from typing import ${1:List}
+
+@dataclass
+class ${2:ClassName}:
+    """${3:Class description.}"""
+    ${4:name}: str
+    ${5:value}: int = ${6:0}
+    ${7:items}: List[str] = field(default_factory=list)
+
+    def __post_init__(self):
+        """Validate fields after __init__."""
+        $0
+endsnippet
+
+
+# ============================================================================
+# [11]  COMMON PYTHON PATTERNS
+# ============================================================================
+
+# trigger: ctx
+# Context manager class (__enter__ / __exit__)
+snippet ctx "Context manager class" b
+class ${1:ResourceManager}:
+    """Context manager for ${2:resource description}."""
+
+    def __enter__(self):
+        ${3:# setup}
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        ${4:# cleanup — always runs, even on exception}
+        return False  # re-raise exceptions
+$0
+endsnippet
+
+# trigger: retry
+# Retry decorator — useful for flaky hardware operations
+snippet retry "Retry decorator for flaky operations" b
+import time
+import functools
+
+def retry(attempts: int = 3, delay: float = 1.0, exceptions=(Exception,)):
+    """
+    Decorator to retry a function on failure.
+    Useful for flaky serial/SSH operations on embedded targets.
+
+    Usage:
+        @retry(attempts=3, delay=0.5, exceptions=(TimeoutError,))
+        def read_sensor():
+            ...
+    """
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            last_exc = None
+            for attempt in range(1, attempts + 1):
+                try:
+                    return func(*args, **kwargs)
+                except exceptions as e:
+                    last_exc = e
+                    log.warning("Attempt %d/%d failed: %s", attempt, attempts, e)
+                    if attempt < attempts:
+                        time.sleep(delay)
+            raise last_exc
+        return wrapper
+    return decorator
+$0
+endsnippet
+
+# trigger: timer
+# Simple elapsed time measurement context manager
+snippet timer "Elapsed time measurement" b
+import time
+from contextlib import contextmanager
+
+@contextmanager
+def timer(label: str = "elapsed"):
+    """Measure and print the time a block of code takes to run."""
+    start = time.monotonic()
+    try:
+        yield
+    finally:
+        elapsed = time.monotonic() - start
+        print(f"{label}: {elapsed:.3f}s")
+
+# Usage:
+# with timer("kernel build"):
+#     run_cmd(["make", "-j8"])
+$0
+endsnippet
+
+# trigger: environ
+# Environment variable reading with defaults and type conversion
+snippet environ "os.environ with type-safe defaults" b
+import os
+
+${1:HOST}    = os.environ.get("${2:TARGET_HOST}", "${3:192.168.1.100}")
+${4:PORT}    = int(os.environ.get("${5:TARGET_PORT}", "${6:22}"))
+${7:VERBOSE} = os.environ.get("${8:VERBOSE}", "").lower() in ("1", "true", "yes")
+$0
+endsnippet
