@@ -78,11 +78,11 @@ That's it. The installer handles dependencies, copies configs, installs vim-plug
 │ ┌─ tmux session: "bsp-dev" ───────────────────────────────────┐   │
 │ │  [1:vim]  [2:build]  [3:adb]   ← named windows              │   │
 │ │ ┌──────────────────┬──────────────┬──────────────┐          │   │
-│ │ │                  │              │               │          │   │
-│ │ │   Vim + NERDTree │  make -j8    │  dmesg -w     │          │   │
-│ │ │   cscope nav     │  build log   │  kernel log   │          │   │
-│ │ │   DTS editing    │              │               │          │   │
-│ │ │                  │              │               │          │   │
+│ │ │                  │              │              │          │   │
+│ │ │   Vim + NERDTree │  make -j8    │  dmesg -w    │          │   │
+│ │ │   cscope nav     │  build log   │  kernel log  │          │   │
+│ │ │   DTS editing    │              │              │          │   │
+│ │ │                  │              │              │          │   │
 │ │ └──────────────────┴──────────────┴──────────────┘          │   │
 │ └─────────────────────────────────────────────────────────────┘   │
 └───────────────────────────────────────────────────────────────────┘
